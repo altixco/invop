@@ -1,0 +1,511 @@
+<!--
+@license
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+
+<dom-module id="metodo-m">
+  <template>
+    <style include="shared-styles"></style>
+    <style>
+      :host {
+        display: block;
+      }
+
+      paper-icon-button{
+        transform: translateY(-5px);
+      }
+
+      .subtitulo{
+        display: inline-block;
+      }
+
+      .subtitulo > * {
+        height:30px;
+      }
+
+      .subtitulo > strong {
+        padding: 0;
+      }
+
+      .variable{
+        font-size: 30px;
+        text-align: left;
+        padding: 0;
+        margin-top: 18px;
+      }
+
+      .add{
+        color: var(--paper-indigo-700);
+      }
+
+      paper-button{
+        font-size: 10px;
+      }
+
+      .title{
+        margin: 13px 0 0 20px;
+        float: left;
+      }
+
+      .resumen{
+        margin-top: 10px;
+      }
+
+      editable-grid{
+        margin-top: 10px;
+      }
+
+      h4{
+        margin-bottom: 3px;
+        margin-top: 5px;
+      }
+
+    </style>
+
+      <div class="s12 divider">
+        <paper-fab style="float:left" icon="arrow-back" on-click="redirectBack" data-to="ingreso-datos" class="indigo" ></paper-fab>
+        <h1 class="title page-title">Método de la M</h1>
+      </div>
+      <div class="s12 resumen">
+        <div class="m10 s12 offset-m1">
+          <h4>Resumen Variables:</h4>
+        </div>
+        <div class="m10 s12 offset-m1" style="border: 3px solid #dcdcdc;text-align:center;">
+          <template is="dom-repeat" items="{{ecuaciones}}" as="ecuacion">
+            <strong>{{ecuacion}}</strong><br>
+        </template>
+      </div>
+      </div>
+      <div class="s12 divider" style="height:5px;"></div>
+      <div class="s12" style="margin-top:10px;">
+        <template is="dom-repeat" items="{{dataTable}}" as="data">
+          <h4>Iteración {{indexMasUno(index)}}:</h4>
+          <editable-grid id$="{{index}}_metodo_m" metadata="{{configTable}}" data-inicial="{{data}}"></editable-grid>
+          <div class="s12 divider" style="height:10px; margin-bottom:10px;padding:0;"></div>
+      </template>
+      </div>
+      <div class="s12 resumen">
+        <div class="m8 s12 offset-m2">
+          <h4>Resultados:</h4>
+        </div>
+        <div class="m8 s12 offset-m2" style="border: 3px solid #dcdcdc;text-align:center;margin-bottom:20px;">
+          <template is="dom-repeat" items="{{resultados}}" as="resultado">
+            <strong>{{resultado}}</strong><br>
+        </template>
+      </div>
+      </div>
+
+  </template>
+
+  <script>
+    (function() {
+      'use strict';
+      
+      Polymer({
+        is: 'metodo-m',
+
+        properties: {
+            selected: {
+              type: String,
+              notify: true
+            },
+            objetivo: { //0: Maximizar, 1: Minimizar
+              type: Number,
+              value: 0
+            },
+            ecuaciones: {
+              type: Array,
+              notify: true
+            },
+            m: {
+              type: Number,
+              notify: true,
+              value: 1000000
+            },
+            ecuaciones: {
+              type: Array,
+              notify: true
+            },
+            configTable: {
+              type: Array,
+              notify: true
+              },
+            dataTable: {
+              type: Array,
+              notify: true
+            },
+            condiciones: {
+              type: Array,
+              notify: true,
+              value: []
+            },
+            variables: {
+              type: Array,
+              notify: true,
+              value: []
+            },
+            actualMatriz: {
+              type: Array,
+              notify: true
+            },
+            basicas: {
+              type: Array,
+              notify: true
+            }
+        },
+        obtenerResultados: function(){
+          this.ecuaciones = [];
+
+          var actualH = 1;
+          var actualF = 1;
+          var condicionesF = [];
+          var condicionesH = [];
+          var holguras = [];
+          this.basicas =[];
+          this.push("basicas","Z");
+          for (var i = 0; i < this.condiciones.length; i++) {
+            var condicion = "";
+            var j=-1;
+            for(var key in this.condiciones[i]){
+              j++;
+              if(key == "operador"){
+                if(this.condiciones[i][key] === "menor_o_igual"){
+                  condicion+= " +H"+actualH;
+                  this.push("basicas","H"+actualH);
+                  condicionesH.push({indice:i, h:"H"+actualH});
+                  actualH++;
+                }
+                else if(this.condiciones[i][key] === "igual"){
+                  condicion+= " +F"+actualF;
+                  this.push("basicas","F"+actualF);
+                  condicionesF.push({tipo:"igual",indice:i, f:"F"+actualF});
+                  actualF++;
+                }
+                else if(this.condiciones[i][key] === "mayor_o_igual"){
+                  condicion+= " -H"+actualH+" +F"+actualF;
+                  holguras.push("H"+actualH);
+                  this.push("basicas","F"+actualF);
+                  condicionesF.push({tipo:"mayor_o_igual",indice:i, f:"F"+actualF, h:"H"+actualH});
+                  actualH++;
+                  actualF++;
+                }
+                continue;
+              }
+              if(key == "valor"){
+                condicion+= " = "+ this.condiciones[i][key];
+                continue;
+              }
+              if(this.condiciones[i][key]===0){
+                continue;
+              }
+              if(this.condiciones[i][key]===1){
+                if(j>0){
+                    condicion+= " +"+ key;
+                }
+                else{
+                  condicion+= " "+ key;
+                }
+                continue;
+              }
+              if(this.condiciones[i][key]>0 && j>0){
+                condicion+= " +"+ this.condiciones[i][key] +""+ key;
+              }
+              else{
+                condicion+= " "+ this.condiciones[i][key]+""+key;
+              }
+            }
+            this.push("ecuaciones",condicion);
+          }
+
+          var coeficientes = {};
+          for(var key in this.condiciones[0]){
+            if(key != "operador"){
+              coeficientes[key] = 0;
+            }
+          } 
+          for (var i = 0; i < condicionesF.length; i++) {
+            for(var key in this.condiciones[condicionesF[i].indice]){
+              if(key != "operador"){
+                if(this.objetivo === 0){
+                  coeficientes[key]-=this.condiciones[condicionesF[i].indice][key];
+                }
+                else if(this.objetivo === 1){
+                  coeficientes[key]+=this.condiciones[condicionesF[i].indice][key];
+                }   
+              }
+            }
+          }
+
+          var z = "Z "; 
+          for (var i = 0; i < this.variables.length; i++) {
+            this.variables[i].multip = parseFloat(this.variables[i].multip);
+            if(this.variables[i].multip === 0){
+              continue;
+            }
+            var mult = this.variables[i].multip*(-1);
+            if( coeficientes[this.variables[i].nombre] > 0){
+              z+=" +("+mult+" +"+coeficientes[this.variables[i].nombre]+"M)"+this.variables[i].nombre;
+            }
+            else{
+              z+=" +("+mult+" "+coeficientes[this.variables[i].nombre]+"M)"+this.variables[i].nombre;
+            }
+          }
+
+          for (var i = 0; i < holguras.length; i++) {
+            if(this.objetivo === 0){
+              z+=" +M"+holguras[i];
+              coeficientes[holguras[i]]=1;
+            }
+            else if(this.objetivo === 1){
+              z+=" -M"+holguras[i];
+              coeficientes[holguras[i]]=-1;
+            }
+          }
+
+          z+=" = "+ coeficientes.valor +"M";
+
+          this.push("ecuaciones",z);
+
+          var config = [];
+          var vars = { name: "vars", label: " ", datatype: "string", editable: false};
+          config.push(vars);
+          var z = { name: "Z", label: "Z", datatype: "double", editable: false};
+          config.push(z);
+
+          for (var i = 0; i < this.variables.length; i++) {
+            var variable = {name: this.variables[i].nombre, label: this.variables[i].nombre, datatype: "double", editable: false};
+            config.push(variable);
+          }
+          for (var i = 1; i < actualH; i++) {
+            var h = {name: "H"+i, label: "H"+i, datatype: "double", editable: false};
+            config.push(h);
+            // this.push("basicas","H"+(i+1));
+          }
+          for (var i = 1; i < actualF; i++) {
+            var f = {name: "F"+i, label: "F"+i, datatype: "double", editable: false};
+            config.push(f);
+            // this.push("basicas","H"+(i+1));
+          }
+          var b = { name: "B", label: "B", datatype: "double", editable: false};
+          config.push(b);
+
+          this.set("configTable",config);
+          console.log(config);
+
+          this.dataTable = [];
+          var numIteracion=0;
+          
+          while(!this.iteracion(numIteracion,coeficientes,condicionesF,condicionesH)){
+            var data = this.matrizAData();
+            this.push("dataTable",data);
+            numIteracion++;
+          }
+
+          this.resultados = [];
+          this.dataResultados = [];
+          for (var i = 0; i < this.actualMatriz.length; i++) {
+            if(this.basicas[i].substring(0,1)!=="H"){
+              var val = this.actualMatriz[i][this.actualMatriz[i].length-1].toFixed(2);
+              var res = this.basicas[i]+" = "+val;
+              this.dataResultados.push({nombre: this.basicas[i], valor: val});
+              this.push("resultados",res);
+            }
+          }
+
+          this.refreshTables();
+
+        },
+        iteracion: function(numIteracion,coeficientes,condicionesF,condicionesH){
+          var iteracion = [];
+          if(numIteracion===0){
+            var fila = [];
+            fila.push(1);
+            for (var i = 0; i < this.variables.length; i++) {
+              fila.push(this.variables[i].multip*(-1)+(coeficientes[this.variables[i].nombre]*this.m));
+            }
+            for (var i = 2+this.variables.length; i < this.configTable.length; i++) {
+              if(coeficientes[this.configTable[i].name]){
+                fila.push(coeficientes[this.configTable[i].name]*this.m);
+              }
+              else if(this.configTable[i].name === "B"){
+                fila.push(coeficientes.valor*this.m);
+              }
+              else{
+                fila.push(0);
+              }
+            }
+            iteracion.push(fila);
+            for (var i = 0; i < this.condiciones.length; i++) {
+              fila = [];
+              for (var j = 1; j < this.configTable.length; j++) {
+                if(this.configTable[j].name === "Z"){
+                  fila.push(0);
+                  continue;
+                }
+                if(this.configTable[j].name === "B"){
+                  fila.push(this.condiciones[i]["valor"]);
+                  continue;
+                }
+                var haveF = false;
+                var numCon;
+                for (var k = 0; k < condicionesF.length; k++) {
+                  if(condicionesF[k].indice === i){
+                    haveF = true;
+                    numCon = k;
+                  }
+                }
+                var numConH;
+                for (var k = 0; k < condicionesH.length; k++) {
+                  if(condicionesH[k].indice === i){
+                    numConH = k;
+                  }
+                }
+                if(this.configTable[j].name.substring(0,1) === "F"){
+                  if(haveF){
+                    if(this.configTable[j].name === condicionesF[numCon].f){
+                      fila.push(1);
+                    }
+                    else{
+                      fila.push(0);
+                    }
+                  }
+                  else{
+                    fila.push(0);
+                  }
+                }
+                else if(this.configTable[j].name.substring(0,1) === "H"){
+                  if(haveF){
+                    if(condicionesF[numCon].tipo === "mayor_o_igual" && this.configTable[j].name === condicionesF[numCon].h){
+                      fila.push(-1);
+                    }
+                    else{
+                      fila.push(0);
+                    }
+                  }
+                  else{
+                    if(this.configTable[j].name === condicionesH[numConH].h){
+                      fila.push(1);
+                    }
+                    else{
+                      fila.push(0);
+                    }
+                  }
+                }
+                else{
+                  fila.push(this.condiciones[i][this.configTable[j].name]);
+                }
+              }
+              iteracion.push(fila);
+            }
+          }
+          else{
+            //Se crea la matriz vácia
+            var iteracion = [];
+            for(var i=0; i<this.actualMatriz.length; i++) {
+                iteracion[i] = new Array(this.actualMatriz[i].length);
+            }
+            var cen = -1;
+            var actual = 0;
+            for (var i = 1; i < this.actualMatriz[0].length-1; i++) {
+              if(this.objetivo===0){
+                if(this.actualMatriz[0][i] < actual){
+                  actual = this.actualMatriz[0][i];
+                  cen = i;
+                }
+              }
+              else if(this.objetivo===1){
+                if(this.actualMatriz[0][i] > actual){
+                  actual = this.actualMatriz[0][i];
+                  cen = i;
+                }
+              }
+            }
+            console.log("Cen:"+cen);
+            if(cen === -1){
+              return true;
+            }
+            var filaen = 0;
+            var actualbcen = 0;
+            for (var i = 1; i < this.actualMatriz.length; i++) {
+              console.log(this.actualMatriz[i][this.actualMatriz[0].length-1]+"/"+this.actualMatriz[i][cen]);
+              var bcen = this.actualMatriz[i][this.actualMatriz[0].length-1]/this.actualMatriz[i][cen];
+              if(i === 1){
+                actualbcen = bcen;
+                filaen = 1;
+              }
+              else if(bcen > 0 && bcen < actualbcen){
+                actualbcen = bcen;
+                filaen = i;
+              }
+            }
+            this.basicas[filaen] = this.configTable[cen+1].label;
+            console.log("Filaen:"+filaen);
+            for (var j = 0; j < this.actualMatriz[filaen].length; j++) {
+              iteracion[filaen][j] = this.actualMatriz[filaen][j]/this.actualMatriz[filaen][cen];
+            }
+            for (var i = 0; i < this.actualMatriz.length; i++) {
+              if(i==filaen){
+                continue;
+              }
+              var multiplo = this.actualMatriz[i][cen]*(-1);
+              for (var j = 0; j < this.actualMatriz[i].length; j++) {
+                iteracion[i][j] = this.actualMatriz[i][j] + multiplo*iteracion[filaen][j];
+              }
+            }
+          }
+          this.set("actualMatriz",iteracion);
+          return false;
+        },
+        matrizAData: function(){
+          var data=[];
+          for (var i = 0; i < this.actualMatriz.length; i++) {
+            var valFila = {};
+            for (var j = -1; j < this.actualMatriz[i].length; j++) {
+              if(j === -1){
+                valFila[this.configTable[j+1].name] = this.basicas[i];
+              }
+              else{
+                valFila[this.configTable[j+1].name] = this.actualMatriz[i][j].toFixed(2);
+              }
+            }
+            data.push({ id:i, values:valFila });
+          }
+          return data;
+        },
+        merge_options: function(obj1,obj2){
+            var obj3 = {};
+            for (var attrname in obj1) { obj3[attrname] = obj1[attrname]; }
+            for (var attrname in obj2) { obj3[attrname] = obj2[attrname]; }
+            return obj3;
+        },
+        redirectBack: function(e){
+          document.getElementById("proglineal").redirectBack(e);
+        },
+        refreshTables: function(){
+          this.async(function(){
+            for (var i = 0; i < this.dataTable.length; i++) {
+              document.getElementById(i+"_metodo_m").attached();
+            }
+          },200);
+        },
+        getParam: function(e,atributo){
+          var target = e.target;
+            while (!target.getAttribute(atributo)) {
+              target = target.parentNode;
+            }
+            return target.getAttribute(atributo);
+        },
+        indexMasUno: function(index){
+          return index+1;
+        }
+      });
+    })();
+  </script>
+
+</dom-module>

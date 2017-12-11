@@ -1,0 +1,391 @@
+<!--
+@license
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+
+<dom-module id="simplex-standard">
+  <template>
+    <style include="shared-styles"></style>
+    <style>
+      :host {
+        display: block;
+      }
+
+      paper-icon-button{
+      	transform: translateY(-5px);
+      }
+
+      .subtitulo{
+      	display: inline-block;
+      }
+
+      .subtitulo > * {
+      	height:30px;
+      }
+
+      .subtitulo > strong {
+      	padding: 0;
+      }
+
+      .variable{
+        font-size: 30px;
+        text-align: left;
+        padding: 0;
+        margin-top: 18px;
+      }
+
+      .add{
+        color: var(--paper-indigo-700);
+      }
+
+      paper-button{
+        font-size: 10px;
+      }
+
+      .title{
+        margin: 13px 0 0 20px;
+        float: left;
+      }
+
+      .resumen{
+      	margin-top: 10px;
+      }
+
+      editable-grid{
+      	margin-top: 10px;
+      }
+
+      h4{
+      	margin-bottom: 3px;
+      	margin-top: 5px;
+      }
+
+    </style>
+
+      <div class="s12 divider">
+        <paper-fab style="float:left" icon="arrow-back" on-click="redirectBack" data-to="ingreso-datos" class="indigo" ></paper-fab>
+        <h1 class="title page-title">Simplex Standard</h1>
+      </div>
+      <div class="s12 resumen">
+      	<div class="m8 s12 offset-m2">
+      		<h4>Resumen Variables:</h4>
+      	</div>
+      	<div class="m8 s12 offset-m2" style="border: 3px solid #dcdcdc;text-align:center;">
+	      	<template is="dom-repeat" items="{{ecuaciones}}" as="ecuacion">
+	      		<strong>{{ecuacion}}</strong><br>
+	  		</template>
+  		</div>
+      </div>
+      <div class="s12 divider" style="height:5px;"></div>
+      <div class="s12" style="margin-top:10px;">
+      	<template is="dom-repeat" items="{{dataTable}}" as="data">
+      		<h4>Iteración {{indexMasUno(index)}}:</h4>
+      		<editable-grid id$="{{index}}_simplex" metadata="{{configTable}}" data-inicial="{{data}}"></editable-grid>
+      		<div class="s12 divider" style="height:10px; margin-bottom:10px;padding:0;"></div>
+  		</template>
+      </div>
+      <div class="s12 resumen">
+      	<div class="m8 s12 offset-m2">
+      		<h4>Resultados:</h4>
+      	</div>
+      	<div class="m8 s12 offset-m2" style="border: 3px solid #dcdcdc;text-align:center;margin-bottom:20px;">
+	      	<template is="dom-repeat" items="{{resultados}}" as="resultado">
+	      		<strong>{{resultado}}</strong><br>
+	  		 </template>
+  		  </div>
+      </div>
+
+  </template>
+
+  <script>
+    (function() {
+      'use strict';
+      
+      Polymer({
+        is: 'simplex-standard',
+
+        properties: {
+            selected: {
+            	type: String,
+            	notify: true
+            },
+            objetivo: { //0: Maximizar, 1: Minimizar
+            	type: Number,
+            	value: 0
+            },
+            ecuaciones: {
+	    		type: Array,
+	    		notify: true
+        	},
+        	ecuaciones: {
+	    		type: Array,
+	    		notify: true
+        	},
+			     configTable: {
+	    		 type: Array,
+	    		 notify: true
+        	},
+        	dataTable: {
+	    		type: Array,
+	    		notify: true
+        	},
+            condiciones: {
+              type: Array,
+              notify: true,
+              value: []
+            },
+            variables: {
+              type: Array,
+              notify: true,
+              value: []
+            },
+            actualMatriz: {
+              type: Array,
+              notify: true
+            },
+            basicas: {
+              type: Array,
+              notify: true
+            }
+        },
+        obtenerResultados: function(){
+        	console.log(this.condiciones);
+        	console.log(this.variables);
+        	this.ecuaciones = [];
+
+        	var z = "Z "; 
+        	for (var i = 0; i < this.variables.length; i++) {
+        		this.variables[i].multip = parseFloat(this.variables[i].multip);
+        		if(this.variables[i].multip === 0){
+        			continue;
+        		}
+        		var mult = this.variables[i].multip*(-1);
+    			if( mult > 0){
+    				z+=" +"+mult+""+this.variables[i].nombre;
+    			}
+    			else{
+    				z+=" "+mult+""+this.variables[i].nombre;
+    			}
+        	}
+        	z+=" = 0"
+
+        	this.push("ecuaciones",z);
+
+        	for (var i = 0; i < this.condiciones.length; i++) {
+        		var condicion = "";
+        		var j=-1;
+        		for(var key in this.condiciones[i]){
+        			j++;
+        			if(key == "operador"){
+        				continue;
+        			}
+        			if(key == "valor"){
+        				condicion+= " +H"+i+" = "+this.condiciones[i][key];
+        				continue;
+        			}
+        			if(this.condiciones[i][key]===0){
+        				continue;
+        			}
+        			if(this.condiciones[i][key]===1){
+		                if(j>0){
+		                    condicion+= " +"+ key;
+		                }
+		                else{
+		                  condicion+= " "+ key;
+		                }
+		                continue;
+	              	}
+        			if(this.condiciones[i][key]>0 && j>0){
+        				condicion+= " +"+ this.condiciones[i][key] +""+ key;
+        			}
+        			else{
+        				condicion+= " "+ this.condiciones[i][key]+""+key;
+        			}
+        		}
+        		this.push("ecuaciones",condicion);
+        	}
+
+        	this.basicas =[];
+        	var config = [];
+        	var vars = { name: "vars", label: " ", datatype: "string", editable: false};
+        	config.push(vars);
+        	var z = { name: "z", label: "Z", datatype: "double", editable: false};
+        	config.push(z);
+
+        	this.push("basicas","Z");
+
+        	for (var i = 0; i < this.variables.length; i++) {
+        		var variable = {name: this.variables[i].nombre, label: this.variables[i].nombre, datatype: "double", editable: false};
+        		config.push(variable);
+        	}
+        	for (var i = 0; i < this.condiciones.length; i++) {
+        		var h = {name: "h"+(i+1), label: "H"+(i+1), datatype: "double", editable: false};
+        		config.push(h);
+        		this.push("basicas","H"+(i+1));
+        	}
+        	var b = { name: "b", label: "B", datatype: "double", editable: false};
+        	config.push(b);
+
+        	this.set("configTable",config);
+
+        	this.dataTable = [];
+        	var numIteracion=0;
+        	while(!this.iteracion(numIteracion)){
+        		var data = this.matrizAData();
+        		this.push("dataTable",data);
+        		numIteracion++;
+        	}
+
+        	this.resultados = [];
+        	for (var i = 0; i < this.actualMatriz.length; i++) {
+        		if(this.basicas[i].substring(0,1)!=="H"){
+        			var val = this.actualMatriz[i][this.actualMatriz[i].length-1].toFixed(2);
+              		var res = this.basicas[i]+" = "+val;
+        			this.push("resultados",res);
+        		}
+        	}
+
+        	this.refreshTables();
+
+        },
+        iteracion: function(numIteracion){
+        	var iteracion = [];
+        	if(numIteracion===0){
+        		var fila = [];
+        		fila.push(1);
+        		for (var i = 0; i < this.variables.length; i++) {
+        			fila.push(this.variables[i].multip*(-1));
+        		}
+        		for (var i = 0; i < this.condiciones.length; i++) {
+        			fila.push(0);
+        		}
+        		fila.push(0);
+        		iteracion.push(fila);
+	        	for (var i = 0; i < this.condiciones.length; i++) {
+	        		fila = [];
+	        		for (var j = 1; j < this.configTable.length; j++) {
+	        			if(this.configTable[j].name === "z"){
+	        				fila.push(0);
+	        				continue;
+	        			}
+	        			if(this.configTable[j].name.substring(0,1) === "h"){
+	        				if(parseInt(this.configTable[j].name.substring(1,2))===i+1){
+	        					fila.push(1);
+	        				}
+	        				else{
+	        					fila.push(0);
+	        				}
+	        				continue;
+	        			}
+	        			if(this.configTable[j].name === "b"){
+	        				fila.push(this.condiciones[i]["valor"]);
+	        				continue;
+	        			}
+	        			fila.push(this.condiciones[i][this.configTable[j].name]);
+	        		}
+	        		iteracion.push(fila);
+	        	}
+        	}
+        	else{
+        		//Se crea la matriz vácia
+        		var iteracion = [];
+				for(var i=0; i<this.actualMatriz.length; i++) {
+				    iteracion[i] = new Array(this.actualMatriz[i].length);
+				}
+        		var cen = -1;
+        		var actualmin = 0;
+        		for (var i = 1; i < this.actualMatriz[0].length-1; i++) {
+        			if(this.actualMatriz[0][i] < actualmin){
+        				actualmin = this.actualMatriz[0][i];
+        				cen = i;
+        			}
+        		}
+        		console.log("Cen:"+cen);
+        		if(cen === -1){
+        			return true;
+        		}
+        		var filaen = 0;
+        		var actualbcen = 0;
+        		for (var i = 1; i < this.actualMatriz.length; i++) {
+        			var bcen = this.actualMatriz[i][this.actualMatriz[0].length-1]/this.actualMatriz[i][cen];
+        			if(i === 1){
+        				actualbcen = bcen;
+        				filaen = 1;
+        			}
+        			else if(bcen > 0 && bcen < actualbcen){
+        				actualbcen = bcen;
+        				filaen = i;
+        			}
+        		}
+        		this.basicas[filaen] = this.configTable[cen+1].label;
+        		console.log("Filaen:"+filaen);
+        		for (var j = 0; j < this.actualMatriz[filaen].length; j++) {
+        			iteracion[filaen][j] = this.actualMatriz[filaen][j]/this.actualMatriz[filaen][cen];
+        		}
+        		for (var i = 0; i < this.actualMatriz.length; i++) {
+        			if(i==filaen){
+        				continue;
+        			}
+        			var multiplo = this.actualMatriz[i][cen]*(-1);
+        			for (var j = 0; j < this.actualMatriz[i].length; j++) {
+        				iteracion[i][j] = this.actualMatriz[i][j] + multiplo*iteracion[filaen][j];
+        			}
+        		}
+        	}
+        	this.set("actualMatriz",iteracion);
+        	return false;
+        },
+        matrizAData: function(){
+        	var data=[];
+        	for (var i = 0; i < this.actualMatriz.length; i++) {
+        		var valFila = {};
+        		for (var j = -1; j < this.actualMatriz[i].length; j++) {
+        			if(j === -1){
+        				valFila[this.configTable[j+1].name] = this.basicas[i];
+        			}
+        			else{
+        				valFila[this.configTable[j+1].name] = this.actualMatriz[i][j].toFixed(2);
+        			}
+        		}
+        		data.push({ id:i, values:valFila });
+        	}
+        	return data;
+        },
+        merge_options: function(obj1,obj2){
+            var obj3 = {};
+            for (var attrname in obj1) { obj3[attrname] = obj1[attrname]; }
+            for (var attrname in obj2) { obj3[attrname] = obj2[attrname]; }
+            return obj3;
+        },
+        redirectBack: function(e){
+          document.getElementById("sectionIngresoDatos").style.transformOrigin = "";
+          document.getElementById("proglineal").redirectBack(e);
+        },
+        refreshTables: function(){
+        	this.async(function(){
+        		for (var i = 0; i < this.dataTable.length; i++) {
+        			document.getElementById(i+"_simplex").attached();
+        		}
+        	},200);
+        },
+        getParam: function(e,atributo){
+          var target = e.target;
+            while (!target.getAttribute(atributo)) {
+              target = target.parentNode;
+            }
+            return target.getAttribute(atributo);
+        },
+        indexMasUno: function(index){
+        	return index+1;
+        }
+      });
+    })();
+  </script>
+
+</dom-module>

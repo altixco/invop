@@ -1,0 +1,267 @@
+<!--
+@license
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+<script src="editablegrid/editablegrid.js"></script>
+<script src="editablegrid/editablegrid_renderers.js" ></script>
+<script src="editablegrid/editablegrid_editors.js" ></script>
+<script src="editablegrid/editablegrid_validators.js" ></script>
+<script src="editablegrid/editablegrid_utils.js" ></script>
+<script src="editablegrid/editablegrid_charts.js" ></script>
+
+<link rel="stylesheet" href="editablegrid/editablegrid.css" type="text/css" media="screen">
+
+<script src="editablegrid/extensions/jquery/jquery-1.6.4.min.js" ></script>
+
+<dom-module id="editable-grid">
+  <template>
+    <style include="shared-styles"></style>
+    <style>
+      :host {
+        display: block;
+      }
+
+    	table.testgrid { border-collapse: collapse; border: 1px solid #CCB; width: 100%; }
+  		table.testgrid td {
+        padding: 2px;
+        height: 20px;
+        border: 1px solid #E0E0E0;
+        text-align: center;
+      }
+  		table.testgrid th { background: #E5E5E5; text-align: left; padding: 5px; border: 1px solid #E0E0E0; }
+  		input.invalid { background: red; color: #FDFDFD; }
+      table.testgrid tr{
+        height: 20px;
+      }
+
+    </style>
+
+    	<div id$="{{id}}_content"></div>
+  </template>
+
+  <script>
+    (function() {
+      'use strict';
+      
+      Polymer({
+        is: 'editable-grid',
+
+        properties: {
+          id: {
+            type: String,
+            notify: true,
+            value: "editablegrid"
+          },
+          metadata: {
+            type: Array,
+            notify: true,
+            value: []
+          },
+          dataInicial: {
+            type: Array,
+            notify: true,
+            value: []
+          },
+          data: {
+            type: Array,
+            notify: true,
+            value: []
+          },
+          editableGrid: {
+          	type: Object,
+          	notify: true
+          },
+          indexrow: {
+            type: Boolean,
+            value: false
+          },
+          enablesort: {
+            type: Boolean,
+            value: false
+          },
+          actioncolumn: {
+            type: Boolean,
+            value: false
+          }
+        },
+        attached: function(){
+
+        	var self = this;
+
+          if(this.indexrow){
+            this.metadata.unshift({ name: "index", label: "#", datatype: "integer", editable: false});
+          }
+          if(this.actioncolumn){
+            this.metadata.push({ name: "action", label: "Acciones", datatype: "html", editable: false });
+          }
+				
+          this.editableGrid = new EditableGrid(this.id+"_grid", {enableSort: this.enablesort});
+
+          this.editableGrid.load({"metadata": this.metadata, "data": this.dataInicial});
+
+          if(this.actioncolumn){
+            this.setActionRenderer();
+          }
+
+          this.editableGrid.tableRendered = function() { self.dataChanged(); };
+
+          // update charts when the table is sorted or filtered
+          this.editableGrid.tableFiltered = function() { console.log("Table filtered"); };
+
+          this.editableGrid.modelChanged = function(rowIndex, columnIndex, oldValue, newValue, row) {
+            self.modelChanged(rowIndex, columnIndex, oldValue, newValue, row);
+          };
+
+          this.editableGrid.rowSelected = function(oldRowIndex, newRowIndex) {
+          };
+
+          this.editableGrid.rowRemoved = function(oldRowIndex, rowId) {
+          };
+
+				  this.editableGrid.renderGrid(this.id+"_content", "style-scope editable-grid testgrid");
+
+        },
+        dataChanged: function(){
+        	this.set("data",this.editableGrid.data);
+        },
+        modelChanged: function(rowIndex, columnIndex, oldValue, newValue, row){
+          this.data = this.editableGrid.data;
+        },
+        addColumn: function(index, newColumn, defaultValue){
+          for (var i = 0; i < this.metadata.length; i++) {
+            this.metadata[i].name = this.editableGrid.columns[i].name;
+            this.metadata[i].label = this.editableGrid.columns[i].label;
+          }
+          this.metadata.splice(index, 0, newColumn);
+          this.dataInicial = [];
+          for (var i = 0; i < this.data.length; i++) {
+            this.data[i].columns.splice(index, 0, defaultValue);
+            var row = {};
+            var menos = 0;
+            if(this.actioncolumn){
+              menos++;
+            }
+            for (var j = 0; j < this.metadata.length-menos; j++) {
+                row[this.metadata[j].name] = this.data[i].columns[j];
+            }
+            this.dataInicial.push({id: i+1,values :row});
+          }
+          this.editableGrid.load({"metadata": this.metadata, "data": this.dataInicial});
+          if(this.actioncolumn){
+            this.setActionRenderer();
+          }
+          this.editableGrid.refreshGrid();
+        },
+        removeColumn: function (index) {
+          this.metadata.splice(index, 1);
+          this.dataInicial = [];
+          for (var i = 0; i < this.data.length; i++) {
+            this.data[i].columns.splice(index, 1);
+            var row = {};
+            for (var j = 0; j < this.metadata.length-1; j++) {
+                row[this.metadata[j].name] = this.data[i].columns[j];
+            }
+            this.dataInicial.push({id: i,values :row});
+          }
+          this.editableGrid.load({"metadata": this.metadata, "data": this.dataInicial});
+          if(this.actioncolumn){
+            this.setActionRenderer();
+          }
+          this.editableGrid.refreshGrid();
+        },
+        addRow: function(){
+        	// get id for new row (max id + 1)
+    			var newRowId = 0;
+    			for (var r = 0; r < this.editableGrid.getRowCount(); r++) {
+    				newRowId = Math.max(newRowId, parseInt(this.editableGrid.getRowId(r)) + 1);
+    			}
+
+          if(this.indexrow){
+            this.editableGrid.insertAfter(this.editableGrid.getRowCount(), newRowId, {"index" : this.editableGrid.getRowCount()+1}); 
+          }
+          else{
+            this.editableGrid.insertAfter(this.editableGrid.getRowCount(), newRowId); 
+          }
+    			
+        },
+        addRowValues: function(values){
+          // get id for new row (max id + 1)
+          var newRowId = 0;
+          for (var r = 0; r < this.editableGrid.getRowCount(); r++) {
+            newRowId = Math.max(newRowId, parseInt(this.editableGrid.getRowId(r)) + 1);
+          }
+
+          var valores = this.merge_options({"index" : this.editableGrid.getRowCount()+1},values);
+
+          if(this.indexrow){
+            this.editableGrid.insertAfter(this.editableGrid.getRowCount(), newRowId, valores); 
+          }
+          else{
+            this.editableGrid.insertAfter(this.editableGrid.getRowCount(), newRowId, values); 
+          }
+          
+        },
+        removeRow: function(rowIndex){
+          this.editableGrid.remove(rowIndex);
+          if(this.indexrow){
+            this.updateIndexes();
+          }
+        },
+        updateIndexes: function(){
+          for (var i = 0; i < this.editableGrid.data.length; i++) {
+            this.editableGrid.data[i].columns[0] = i+1;
+          }
+          this.editableGrid.refreshGrid();
+        },
+        updateColumnName: function(index, name, label){
+          this.editableGrid.columns[index].name = name;
+          this.editableGrid.columns[index].label = label;
+          this.editableGrid.refreshGrid();
+        },
+        merge_options: function(obj1,obj2){
+            var obj3 = {};
+            for (var attrname in obj1) { obj3[attrname] = obj1[attrname]; }
+            for (var attrname in obj2) { obj3[attrname] = obj2[attrname]; }
+            return obj3;
+        },
+        getParam: function(e,atributo){
+          var target = e.target;
+            while (!target.getAttribute(atributo)) {
+              target = target.parentNode;
+            }
+            return target.getAttribute(atributo);
+        },
+        setActionRenderer: function(){
+              var self = this;
+              this.editableGrid.setCellRenderer("action", new CellRenderer({render: function(cell, value) {
+              // this action will remove the row, so first find the ID of the row containing this cell 
+              // var rowId = self.getRowId(cell.rowIndex);
+
+              var a = document.createElement("a");
+              a.setAttribute('onclick', 'document.getElementById("'+self.id+'").removeRow("'+cell.rowIndex+'")');
+              a.setAttribute('style', "cursor:pointer");
+
+              var img = document.createElement("img");
+              img.setAttribute('src', 'elements/editable-grid/editablegrid/images/delete.png');
+              img.setAttribute('border', '0');
+              img.setAttribute('alt', 'borrar');
+              img.setAttribute('title', 'Borrar fila');
+
+              Polymer.dom(a).appendChild(img);
+
+              Polymer.dom(cell).appendChild(a);
+
+            }}));
+        }
+      });
+    })();
+  </script>
+
+</dom-module>

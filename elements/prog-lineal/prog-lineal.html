@@ -1,0 +1,396 @@
+<!--
+@license
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+
+<dom-module id="prog-lineal">
+  <template>
+    <style include="shared-styles"></style>
+    <style>
+      :host {
+        display: block;
+        height: 100%;
+      }
+
+      paper-icon-button{
+      	transform: translateY(-5px);
+      }
+
+      .subtitulo{
+      	display: inline-block;
+      }
+
+      .subtitulo > * {
+      	height:30px;
+      }
+
+      .subtitulo > strong {
+      	padding: 0;
+      }
+
+      .variable{
+        font-size: 30px;
+        text-align: left;
+        padding: 0;
+        margin-top: 18px;
+      }
+
+      .add{
+        color: var(--paper-indigo-700);
+      }
+
+      paper-button{
+        font-size: 10px;
+      }
+
+      .title{
+        margin: 13px 0 0 20px;
+        float: left;
+      }
+    </style>
+
+    <neon-animated-pages attr-for-selected="data-route" selected="{{selected}}" entry-animation="[[entryAnimation]]" exit-animation="[[exitAnimation]]">
+
+    <section data-route="ingreso-datos" id="sectionIngresoDatos">
+      <h2 class="page-title divider">Programación Lineal</h2>
+      <!-- <paper-button tabindex="0" on-click="addRow" raised class="colorful custom"><iron-icon icon="add"></iron-icon>Agregar Condición</paper-button> -->
+      <iron-grid>
+      	<div class="s12" style="padding:0">
+      		<div class="s12 m5" style="padding:0">
+            <div class="s12" style="padding:0 10px 0 0">
+              <paper-dropdown-menu label="Objetivo">
+                <paper-menu class="dropdown-content" selected="{{objetivo}}">
+                  <paper-item>Maximizar</paper-item>
+                  <paper-item>Minimizar</paper-item>
+                </paper-menu>
+              </paper-dropdown-menu>
+            </div>
+            <div class="s12" style="padding:0">
+              <strong class="s2 m3" style="font-size:30px;padding:0;">Z = </strong>
+              <div class="s9">
+                <template is="dom-repeat" items="{{onlyVariables}}" as="variable">
+                  <div class="s4 m12">
+                    <span class="s2 variable" >+</span>
+                    <paper-input type="number" class="s4" style="transform: translateY(-8px);padding:0;" label$="k{{index}}" value="{{variable.multip::input}}"></paper-input>
+                    <span class="s6 variable" >{{variable.nombre}}</span>
+                  </div>
+                </template>
+              </div>
+            </div>
+      		</div>
+      		<div class="s8 m7" style="padding:0">
+  		    	<div class="subtitulo">
+  			    	<strong class="s6" style="padding:0">Variables de decisión:</strong>
+  			    	<paper-icon-button class="s6 add" icon="add" on-click="addVariable"></paper-icon-button>
+  			    </div>
+  			    <editable-grid id="variables" indexrow actioncolumn metadata="{{configVariables}}" data="{{variables}}"></editable-grid>
+  			</div>
+  		</div>
+      <div class="s12 divider" style="height:5px; margin-bottom:5px;"></div>
+      	<div class="subtitulo">
+  	    	<strong class="s4 m3">Condiciones:</strong>
+  	    	<paper-icon-button class="s4 add" icon="add" on-click="addCondicion"></paper-icon-button>
+  	    </div>
+      <editable-grid id="condiciones" indexrow actioncolumn metadata="{{configCondiciones}}" data="{{condiciones}}"></editable-grid>
+      <div class="s12 divider" style="height:20px; margin-bottom:10px;"></div>
+      <strong>Resolver:</strong>
+      <div style="margin:20px 0;">
+        <paper-button tabindex="0" raised class="colorful" on-click="toGrafico" data-to="metodo-grafico"><iron-icon icon="check"></iron-icon>Método Gráfico</paper-button>
+        <paper-button tabindex="0" raised class="colorful" on-click="toSimplex" data-to="simplex-standard"><iron-icon icon="check"></iron-icon>Simplex Standard</paper-button>
+        <paper-button tabindex="0" raised class="colorful" on-click="toM" data-to="metodo-m"><iron-icon icon="check"></iron-icon>Método de La M</paper-button>
+      </div>
+      </iron-grid>
+    </section>
+
+    <section data-route="metodo-grafico">
+      <metodo-grafico id="metodografico" selected="{{selected}}" objetivo="[[objetivo]]" condiciones="[[onlyCondiciones]]" variables="[[onlyVariables]]"></metodo-grafico> 
+      </div>
+    </section>
+
+    <section data-route="simplex-standard">
+      <simplex-standard id="simplex" selected="{{selected}}" objetivo="[[objetivo]]" condiciones="[[onlyCondiciones]]" variables="[[onlyVariables]]"></simplex-standard> 
+    </section>
+
+    <section data-route="metodo-m">
+      <metodo-m id="metodom" selected="{{selected}}" objetivo="[[objetivo]]" condiciones="[[onlyCondiciones]]" variables="[[onlyVariables]]"></metodo-m>
+    </section>
+
+  </neon-animated-pages>
+
+  </template>
+
+  <script>
+    (function() {
+      'use strict';
+      
+      Polymer({
+        is: 'prog-lineal',
+
+        properties: {
+          selected: {
+            type: String,
+            value: "ingreso-datos"
+          },
+          objetivo: { //0: Maximizar, 1: Minimizar
+            type: Number,
+            value: 0
+          },
+    		  configCondiciones: {
+        		type: Array,
+        		notify: true,
+	          	value: function(){
+	          		return [{ name: "operador", label: "Operador", datatype: "string", editable: true, values: {"menor_o_igual":"<=","mayor_o_igual":">=","igual":"="}},
+	          				{ name: "valor", label: "Valor", datatype: "double", editable: true}];
+	          	}
+        	},
+        	configVariables: {
+        		type: Array,
+        		notify: true,
+	          	value: function(){
+	          		return [{ name: "variable", label: "Variable", datatype: "string", editable: true},
+	          				{ name: "descripcion", label: "Descripción", datatype: "string", editable: true}];
+	          	}
+        	},
+            onlyCondiciones: {
+              type: Array,
+              notify: true,
+              value: []
+            },
+          	condiciones: {
+	          	type: Array,
+	          	notify: true,
+	          	value: []
+          	},
+            onlyVariables: {
+              type: Array,
+              notify: true,
+              value: []
+            },
+          	variables: {
+	          	type: Array,
+	          	notify: true,
+	          	value: []
+          	}
+        },
+        ready: function(){
+        	this.$.variables.removeRow = function(rowIndex){
+          		this.editableGrid.remove(rowIndex);
+          		document.getElementById("proglineal").removeColumnConditions(rowIndex);
+          		var j=0;
+          		if(this.indexrow){
+		            this.updateIndexes();
+		            j=1;
+	          	}
+	          	for (var i = 0; i < this.editableGrid.data.length; i++) {
+                var condiciones = document.getElementById("condiciones");
+                var indice = i;
+                if(condiciones.indexrow){
+                  indice = i + 1;
+                }
+                var valor = "X"+(indice);
+		            
+                if (this.editableGrid.data[i].columns[j].substring(0,1)==="X"){
+                  this.editableGrid.data[i].columns[j] = valor;
+                }
+                else{
+                  valor = this.editableGrid.data[i].columns[j];
+                }
+                condiciones.updateColumnName(indice,valor,valor);
+	          	}
+              this.editableGrid.refreshGrid();
+        	};
+          this.$.variables.modelChanged = function(rowIndex, columnIndex, oldValue, newValue, row){
+            this.data = this.editableGrid.data;
+            if(condiciones.indexrow){
+              condiciones.updateColumnName(rowIndex+1, newValue,newValue);
+            }
+            else{
+              condiciones.updateColumnName(rowIndex,newValue,newValue);
+            }
+            document.getElementById("proglineal").variablesChanged();
+          };
+          this.$.condiciones.modelChanged = function(rowIndex, columnIndex, oldValue, newValue, row){
+            this.data = this.editableGrid.data;
+            document.getElementById("proglineal").condicionesChanged();
+          };
+          this.$.variables.dataChanged= function(){
+            this.set("data",this.editableGrid.data);
+            document.getElementById("proglineal").variablesChanged();
+          };
+          this.$.condiciones.dataChanged= function(){
+            this.set("data",this.editableGrid.data);
+            document.getElementById("proglineal").condicionesChanged();
+          };
+        },
+        condicionesChanged: function(){
+          this.onlyCondiciones = [];
+          var indice = 0;
+          if (this.$.condiciones.indexrow) {
+            indice = 1;
+          }
+          var menos = 0;
+          if (this.$.condiciones.actioncolumn) {
+            menos = 1;
+          }
+
+          for (var i = 0; i < this.condiciones.length; i++) {
+            var condicion = {};
+            for (var j = indice; j < this.condiciones[i].columns.length - menos; j++) {
+              if(j === this.condiciones[i].columns.length - menos - 2){
+                condicion["operador"] = this.condiciones[i].columns[j];
+              }
+              else if(j === this.condiciones[i].columns.length - menos - 1){
+                condicion["valor"] = this.condiciones[i].columns[j];
+              }
+              else{
+                var name = this.variables[j-1].columns[1];
+                condicion[name] = this.condiciones[i].columns[j];
+              }
+            }
+            this.push("onlyCondiciones",condicion);
+          }
+            
+        },
+        variablesChanged: function(){
+          var tempVariables = this.onlyVariables.slice(0);
+          this.onlyVariables = [];
+          var indice = 0;
+          if (this.$.variables.indexrow) {
+            indice = 1;
+          }
+          for (var i = 0; i < this.variables.length; i++) {
+            var count = this.variables[i].columns.length;
+            var multip = 0;
+            if(tempVariables[i]){
+              if(tempVariables[i].multip){
+                multip = tempVariables[i].multip;
+              }
+            }
+            var variable = {nombre : this.variables[i].columns[indice], descripcion : this.variables[i].columns[indice+1], multip: multip};
+            this.push("onlyVariables",variable);
+          }
+          
+        },
+        addVariable: function(){
+        	var actualVar = this.variables.length + 1;
+        	var nombre = "X"+actualVar;
+
+        	var values = {"variable": nombre};
+        	this.$.variables.addRowValues(values);
+
+        	var column = { name: nombre, label: nombre, datatype: "double", editable: true};
+        	var index = this.variables.length - 1;
+        	if (this.$.condiciones.indexrow){
+        		index++;
+        	}
+        	this.$.condiciones.addColumn(index, column, 0);
+        },
+        addCondicion: function(){
+        	var inicial = 0;
+        	if (this.$.condiciones.indexrow){
+        		inicial++;
+        	}
+        	var multipl = {};
+        	for ( var i = inicial; i < inicial + this.variables.length; i++) {
+        		multipl[this.$.condiciones.editableGrid.columns[i].name] = 0;
+        	}
+        	var values = {"operador": "menor_o_igual", "valor": 0};
+        	this.$.condiciones.addRowValues(this.merge_options(multipl,values));
+        },
+        removeColumnConditions: function(index){
+        	if (this.$.condiciones.indexrow){
+        		index++;
+        	}
+        	this.$.condiciones.removeColumn(index);
+        },
+        merge_options: function(obj1,obj2){
+            var obj3 = {};
+            for (var attrname in obj1) { obj3[attrname] = obj1[attrname]; }
+            for (var attrname in obj2) { obj3[attrname] = obj2[attrname]; }
+            return obj3;
+        },
+        verificar: function(){
+          if (this.onlyCondiciones.length === 0){
+            app.$.toast.text = 'Las condiciones están vacías';
+            app.$.toast.show();
+            return false;
+          }
+          else if(this.onlyVariables.length === 0){
+            app.$.toast.text = 'Las variables están vacías';
+            app.$.toast.show();
+            return false;
+          }
+          else {
+            return true;
+          }
+        },
+        toSimplex: function(e){
+          if (!this.verificar()){
+            return;
+          }
+          if(this.objetivo !== 0){
+            app.$.toast.text = 'Error! El método simplex solo funciona para maximización';
+            app.$.toast.show();
+            return;
+          }
+          for (var i = 0; i < this.onlyCondiciones.length; i++) {
+            if(this.onlyCondiciones[i].operador !== "menor_o_igual"){
+              app.$.toast.text = 'Error! El método simplex solo sirve con operadores menor o igual';
+              app.$.toast.show();
+              return;
+            }
+          }
+          this.$.simplex.obtenerResultados();
+          this.redirectUp(e);
+        },
+        toM: function(e){
+          if (!this.verificar()){
+            return;
+          }
+          this.$.metodom.obtenerResultados();
+          this.redirectUp(e);
+        },
+        toGrafico: function(e){
+          if (!this.verificar()){
+            return;
+          }
+          if(this.onlyVariables.length > 2){
+            app.$.toast.text = 'Debido a dificultades de graficación, el método gráfico solo permite un máximo de dos variables de condición';
+            app.$.toast.show();
+            return;
+          }
+          this.$.metodom.obtenerResultados();
+          this.$.metodografico.resultados = this.$.metodom.resultados;
+          this.$.metodografico.dataResultados = this.$.metodom.dataResultados;
+          this.$.metodografico.obtenerResultados();
+          this.redirectUp(e);
+        },
+        redirectUp: function(e){
+          this.entryAnimation = 'slide-from-right-animation';
+          this.exitAnimation = 'slide-left-animation';
+          this.selected = this.getParam(e,"data-to");
+        },
+        redirectBack: function(e){
+          document.getElementById("sectionIngresoDatos").style.transformOrigin = "";
+          this.entryAnimation = 'slide-from-left-animation';
+          this.exitAnimation = 'slide-right-animation';
+          this.selected = this.getParam(e,"data-to");
+        },
+        getParam: function(e,atributo){
+          var target = e.target;
+            while (!target.getAttribute(atributo)) {
+              target = target.parentNode;
+            }
+            return target.getAttribute(atributo);
+        },
+      });
+    })();
+  </script>
+
+</dom-module>

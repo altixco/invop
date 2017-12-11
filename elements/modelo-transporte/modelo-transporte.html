@@ -1,0 +1,359 @@
+<!--
+@license
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+
+<dom-module id="modelo-transporte">
+  <template>
+    <style include="shared-styles"></style>
+    <style>
+      :host {
+        display: block;
+        height: 100%;
+      }
+
+      paper-icon-button{
+        transform: translateY(-5px);
+      }
+
+      .subtitulo{
+        display: inline-block;
+      }
+
+      .subtitulo > * {
+        height:30px;
+      }
+
+      .subtitulo > strong {
+        padding: 0;
+      }
+
+      .variable{
+        font-size: 30px;
+        text-align: left;
+        padding: 0;
+        margin-top: 18px;
+      }
+
+      .add{
+        color: var(--paper-indigo-700);
+      }
+
+      paper-button{
+        font-size: 10px;
+      }
+
+      .title{
+        margin: 13px 0 0 20px;
+        float: left;
+      }
+    </style>
+
+    <neon-animated-pages attr-for-selected="data-route" selected="{{selected}}" entry-animation="[[entryAnimation]]" exit-animation="[[exitAnimation]]">
+
+    <section data-route="ingreso-datos">
+      <h2 class="page-title divider">Modelo de Transporte</h2>
+      <!-- <paper-button tabindex="0" on-click="addRow" raised class="colorful custom"><iron-icon icon="add"></iron-icon>Agregar Condición</paper-button> -->
+      <iron-grid>
+      <div class="s12 divider" style="height:5px; margin-bottom:5px;"></div>
+      <div class="s12">
+        <div class="subtitulo s6">
+          <strong class="s8">Agregar Destino:</strong>
+          <paper-icon-button class="s4 add" icon="add" on-click="addFuente"></paper-icon-button>
+        </div>
+        <div class="subtitulo s6">
+          <strong class="s8">Agregar Fuente:</strong>
+          <paper-icon-button class="s4 add" icon="add" on-click="addDestino"></paper-icon-button>
+        </div>
+      </div>
+        <div class="s12">
+          <div class="s9">
+            <strong>Costos:</strong><br>
+            <editable-grid id="costos" metadata="{{configCostos}}" data="{{costos}}"></editable-grid>
+          </div>
+          <div class="s3">
+            <strong>Ofertas:</strong><br>
+            <editable-grid id="demandas" actioncolumn metadata="{{configDemandas}}" data="{{demandas}}"></editable-grid>
+          </div>
+        </div>
+        <div class="s12">
+          <div class="s9">
+            <strong>Demandas:</strong><br>
+            <editable-grid id="ofertas" data="{{ofertas}}"></editable-grid>
+          </div>
+        </div>
+      <div class="s12 divider" style="height:20px; margin-bottom:10px;"></div>
+      <div class="s12" style="margin:20px 0;">
+        <strong>Resolver:</strong><br><br>
+        <paper-button tabindex="0" raised class="colorful" on-click="toNoroeste"><iron-icon icon="check"></iron-icon>Esquina Noroeste</paper-button>
+        <paper-button tabindex="0" raised class="colorful" on-click="toCostoMinimo"><iron-icon icon="check"></iron-icon>Costo mínimo</paper-button>
+        <paper-button tabindex="0" raised class="colorful" on-click="toVogel"><iron-icon icon="check"></iron-icon>Método Vogel</paper-button>
+      </div>
+      </iron-grid>
+    </section>
+
+    <section data-route="solucion">
+      <solucion-transporte id="solucion" ofertas="{{onlyDemandas}}" demandas="{{onlyOfertas}}" costos="{{onlyCostos}}"></solucion-transporte>
+    </section>
+
+  </neon-animated-pages>
+
+  </template>
+
+  <script>
+    (function() {
+      'use strict';
+      
+      Polymer({
+        is: 'modelo-transporte',
+
+        properties: {
+          selected: {
+            type: String,
+            value: "ingreso-datos"
+          },
+          configCostos: {
+            type: Array,
+            notify: true,
+            value: []
+          },
+          configDemandas: {
+            type: Array,
+            notify: true,
+              value: function(){
+                return [{ name: "demanda", label: "Oferta", datatype: "integer", editable: true},
+                        { name: "destino", label: "Fuente", datatype: "string"}];
+              }
+          },
+          configOfertas: {
+            type: Array,
+            notify: true
+          },
+            onlyCostos: {
+              type: Array,
+              notify: true,
+              value: []
+            },
+            costos: {
+              type: Array,
+              notify: true,
+              value: []
+            },
+            onlyDemandas: {
+              type: Array,
+              notify: true,
+              value: []
+            },
+            demandas: {
+              type: Array,
+              notify: true,
+              value: []
+            },
+            onlyOfertas: {
+              type: Array,
+              notify: true,
+              value: []
+            },
+            ofertas: {
+              type: Array,
+              notify: true,
+              value: []
+            }
+        },
+        ready: function(){
+          this.$.demandas.removeRow = function(rowIndex){
+              this.editableGrid.remove(rowIndex);
+              document.getElementById("costos").removeRow(rowIndex);
+              var j=1;
+              for (var i = 0; i < this.editableGrid.data.length; i++) {
+                var valor = "F"+(i+1);
+                
+                if (this.editableGrid.data[i].columns[j].substring(0,1)==="F"){
+                  this.editableGrid.data[i].columns[j] = valor;
+                }
+                else{
+                  valor = this.editableGrid.data[i].columns[j];
+                }
+              }
+              this.editableGrid.refreshGrid();
+          };
+          this.$.demandas.modelChanged = function(rowIndex, columnIndex, oldValue, newValue, row){
+            this.data = this.editableGrid.data;
+            document.getElementById("modtransporte").demandasChanged();
+          };
+          this.$.ofertas.modelChanged = function(rowIndex, columnIndex, oldValue, newValue, row){
+            this.data = this.editableGrid.data;
+            document.getElementById("modtransporte").ofertasChanged();
+          };
+          this.$.demandas.dataChanged= function(){
+            this.set("data",this.editableGrid.data);
+            document.getElementById("modtransporte").demandasChanged();
+          };
+          this.$.ofertas.dataChanged= function(){
+            this.set("data",this.editableGrid.data);
+            document.getElementById("modtransporte").ofertasChanged();
+          };
+          this.$.costos.dataChanged= function(){
+            this.set("data",this.editableGrid.data);
+            document.getElementById("modtransporte").costosChanged();
+          };
+          this.$.costos.modelChanged = function(rowIndex, columnIndex, oldValue, newValue, row){
+            this.data = this.editableGrid.data;
+            document.getElementById("modtransporte").costosChanged();
+          };
+        },
+        demandasChanged: function(){
+          this.onlyDemandas = [];
+
+          for (var i = 0; i < this.demandas.length; i++) {
+            var demanda = {};
+            demanda["nombre"] = this.demandas[i].columns[1];
+            demanda["valor"] = this.demandas[i].columns[0];
+            this.push("onlyDemandas",demanda);
+          }
+            
+        },
+        ofertasChanged: function(){
+          this.onlyOfertas = [];
+
+          if(!this.ofertas[0]){
+            return;
+          }
+          for (var i = 0; i < this.ofertas[0].columns.length; i++) {
+            var oferta = {};
+            oferta["nombre"] = this.$.ofertas.metadata[i].name;
+            oferta["valor"] = this.ofertas[0].columns[i];
+            this.push("onlyOfertas",oferta);
+          }
+            
+        },
+        variablesChanged: function(){
+          var tempVariables = this.onlyVariables.slice(0);
+          this.onlyVariables = [];
+          var indice = 0;
+          if (this.$.variables.indexrow) {
+            indice = 1;
+          }
+          for (var i = 0; i < this.variables.length; i++) {
+            var count = this.variables[i].columns.length;
+            var multip = 0;
+            if(tempVariables[i]){
+              if(tempVariables[i].multip){
+                multip = tempVariables[i].multip;
+              }
+            }
+            var variable = {nombre : this.variables[i].columns[indice], descripcion : this.variables[i].columns[indice+1], multip: multip};
+            this.push("onlyVariables",variable);
+          }
+          
+        },
+        costosChanged: function(){
+          this.onlyCostos = [];
+
+          for (var i = 0; i < this.costos.length; i++) {
+            this.onlyCostos[i] = new Array(this.costos[0].columns.length);
+           for (var j = 0; j < this.costos[0].columns.length; j++) {
+             this.onlyCostos[i][j] = this.costos[i].columns[j];
+           }
+          }
+        },
+        addFuente: function(){
+          var actualVar = this.$.ofertas.editableGrid.columns.length + 1;
+          var nombre = "D"+actualVar;
+
+          var column = { name: nombre, label: nombre, datatype: "double", editable: true};
+          var columnOfer = { name: nombre, label: nombre, datatype: "integer", editable: true};
+          var index = actualVar-1;
+          this.$.costos.addColumn(index, column, 0);
+          this.$.ofertas.addColumn(index, columnOfer, 0);
+          if(actualVar === 1){
+            this.$.ofertas.addRowValues({"D1":0});
+          }
+          
+        },
+        addDestino: function(){
+          var actualVar = this.demandas.length + 1;
+          var nombre = "F"+actualVar;
+
+          var values = {"demanda":0,"destino": nombre};
+          this.$.demandas.addRowValues(values);
+
+          var valuesCostos = {};
+          var cantFuentes = this.$.ofertas.metadata.length;
+          for (var i = 0; i < cantFuentes; i++) {
+            valuesCostos[this.$.ofertas.metadata[i].name] = 0;
+          }
+          this.$.costos.addRowValues(valuesCostos);
+
+        },
+        merge_options: function(obj1,obj2){
+            var obj3 = {};
+            for (var attrname in obj1) { obj3[attrname] = obj1[attrname]; }
+            for (var attrname in obj2) { obj3[attrname] = obj2[attrname]; }
+            return obj3;
+        },
+        toNoroeste: function(e){
+          this.$.solucion.noroeste();
+          if(this.verificar()){
+            this.redirectUp(e);
+          }
+        },
+        toCostoMinimo: function(e){
+          this.$.solucion.costoMinimo();
+          if(this.verificar()){
+            this.redirectUp(e);
+          }
+        },
+        toVogel: function(e){
+          this.$.solucion.vogel();
+          if(this.verificar()){
+            this.redirectUp(e);
+          }
+        },
+        verificar: function(){
+          var sumaDemandas = 0;
+          for (var i = 0; i < this.onlyDemandas.length; i++) {
+            sumaDemandas += this.onlyDemandas[i].valor;
+          }
+          var sumaOfertas = 0;
+          for (var i = 0; i < this.onlyOfertas.length; i++) {
+            sumaOfertas += this.onlyOfertas[i].valor;
+          }
+          if(sumaDemandas!==sumaOfertas){
+            app.$.toast.text = 'Error! Las sumas de ofertas de demandas deben ser iguales';
+            app.$.toast.show();
+            return false;
+          }
+          else{
+            return true;
+          }
+          
+        },
+        redirectUp: function(e){
+          this.entryAnimation = 'slide-from-right-animation';
+          this.exitAnimation = 'slide-left-animation';
+          this.selected = "solucion";
+        },
+        redirectBack: function(e){
+          this.entryAnimation = 'slide-from-left-animation';
+          this.exitAnimation = 'slide-right-animation';
+          this.selected = this.getParam(e,"data-to");
+        },
+        getParam: function(e,atributo){
+          var target = e.target;
+            while (!target.getAttribute(atributo)) {
+              target = target.parentNode;
+            }
+            return target.getAttribute(atributo);
+        },
+      });
+    })();
+  </script>
+
+</dom-module>

@@ -1,0 +1,220 @@
+<!-- shared styles for all elements and index.html -->
+<dom-module id="shared-styles">
+  <template>
+    <style>
+      
+      paper-button.black {
+        color: #fff;
+        background: #000;
+      }
+
+      paper-button.colorful {
+        color: #4285f4;
+      }
+
+      paper-button[raised].colorful {
+        background: #4285f4;
+        color: #fff;
+      }
+
+      paper-button.blue {
+        color: var(--paper-light-blue-500);
+        --paper-button-flat-focus-color: var(--paper-light-blue-50);
+      }
+      paper-button.blue:hover {
+        background: var(--paper-light-blue-50);
+      }
+
+      .page-title {
+        @apply(--paper-font-display2);
+      }
+
+      .divider {
+        border-bottom: 1px solid #dcdcdc;
+      }
+
+      paper-menu a > *, paper-menu paper-item > *, paper-menu paper-icon-item > * {
+        pointer-events: none;
+      }
+
+      @media (max-width: 600px) {
+        .page-title {
+          font-size: 24px!important;
+        }
+      }
+
+      /*Colors */
+        .red {
+          background: var(--paper-red-400);
+        }
+
+        .red .divcolor {
+          background: var(--paper-red-700);
+        }
+
+        .purple {
+          background: var(--paper-purple-400);
+        }
+
+        .purple .divcolor {
+          background: var(--paper-purple-700);
+        }
+
+        .deep-purple {
+          background: var(--paper-deep-purple-400);
+        }
+
+        .deep-purple .divcolor {
+          background: var(--paper-deep-purple-700);
+        }
+
+        .indigo {
+          background: var(--paper-indigo-400);
+        }
+
+        .indigo .divcolor {
+          background: var(--paper-indigo-700);
+        }
+
+        .indigo-oscuro {
+          background: var(--paper-indigo-700);
+        }
+
+        .yellow {
+          background: var(--paper-yellow-400);
+        }
+
+        .yellow .divcolor {
+          background: var(--paper-yellow-700);
+        }
+
+        .blue {
+          background: var(--paper-blue-400);
+        }
+
+        .blue .divcolor {
+          background: var(--paper-blue-700);
+        }
+
+        .light-blue {
+          background: var(--paper-light-blue-400);
+        }
+
+        .light-blue .divcolor {
+          background: var(--paper-light-blue-700);
+        }
+
+        .cyan {
+          background: var(--paper-cyan-400);
+        }
+
+        .cyan .divcolor {
+          background: var(--paper-cyan-700);
+        }
+
+        .pink {
+          background: var(--paper-pink-400);
+        }
+
+        .pink .divcolor {
+          background: var(--paper-pink-700);
+        }
+
+        .teal {
+          background: var(--paper-teal-400);
+        }
+
+        .teal .divcolor {
+          background: var(--paper-teal-700);
+        }
+
+        .green {
+          background: var(--paper-green-400);
+        }
+
+        .green .divcolor {
+          background: var(--paper-green-700);
+        }
+
+        .light-green {
+          background: var(--paper-light-green-400);
+        }
+
+        .light-green .divcolor {
+          background: var(--paper-light-green-700);
+        }
+
+        .lime {
+          background: var(--paper-lime-400);
+        }
+
+        .lime .divcolor {
+          background: var(--paper-lime-700);
+        }
+
+        .orange {
+          background: var(--paper-orange-400);
+        }
+
+        .orange .divcolor {
+          background: var(--paper-orange-700);
+        }
+
+        .deep-orange {
+          background: var(--paper-deep-orange-400);
+        }
+
+        .deep-orange .divcolor {
+          background: var(--paper-deep-orange-700);
+        }
+
+        .amber {
+          background: var(--paper-amber-400);
+        }
+
+        .amber .divcolor {
+          background: var(--paper-amber-700);
+        }
+
+        .brown {
+          background: var(--paper-brown-400);
+        }
+
+        .brown .divcolor {
+          background: var(--paper-brown-700);
+        }
+
+        .grey {
+          background: var(--paper-grey-400);
+        }
+
+        .grey .divcolor {
+          background: var(--paper-grey-700);
+        }
+
+        .blue-grey {
+          background: var(--paper-blue-grey-400);
+        }
+
+        .blue-grey .divcolor {
+          background: var(--paper-blue-grey-700);
+        }
+
+        .white {
+          background: var(--paper-white);
+        }
+
+        .white .divcolor {
+          background: var(--paper-grey-500);
+        }
+
+        neon-animated-pages{
+          height: 100%;
+        }
+
+        /*neon-animated-pages > *{
+          position: relative !important;
+        }*/
+    </style>
+  </template>
+</dom-module>

@@ -1,0 +1,235 @@
+<!--
+@license
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+
+<dom-module id="metodo-grafico">
+  <template>
+    <style include="shared-styles"></style>
+    <style>
+      :host {
+        display: block;
+      }
+
+      paper-icon-button{
+      	transform: translateY(-5px);
+      }
+
+      .subtitulo{
+      	display: inline-block;
+      }
+
+      .subtitulo > * {
+      	height:30px;
+      }
+
+      .subtitulo > strong {
+      	padding: 0;
+      }
+
+      .variable{
+        font-size: 30px;
+        text-align: left;
+        padding: 0;
+        margin-top: 18px;
+      }
+
+      .add{
+        color: var(--paper-indigo-700);
+      }
+
+      paper-button{
+        font-size: 10px;
+      }
+
+      .title{
+        margin: 13px 0 0 20px;
+        float: left;
+      }
+
+      google-chart{
+			width: 100%;
+			height: 370px;
+		}
+    </style>
+
+      <div class="s12 divider">
+        <paper-fab style="float:left" icon="arrow-back" on-click="redirectBack" data-to="ingreso-datos" class="indigo" ></paper-fab>
+        <h1 class="title page-title">Método Gráfico</h1>
+      </div>
+      <div class="s12 grafica" >
+  		<google-chart
+			  id="grafico"
+		    type="combo"
+		    options='{"title": "Gráfica Condiciones",
+                "vAxis": {"title": "X2"},
+                "hAxis": {"title": "X1"},
+                "seriesType": "line"
+                }'
+		    cols='{{columnas}}'
+		    rows='{{datosGrafica}}'>
+	  	</google-chart>
+	  	</div>
+
+      <div class="s12 resumen">
+        <div class="m8 s12 offset-m2">
+          <h4>Resultados:</h4>
+        </div>
+        <div class="m8 s12 offset-m2" style="border: 3px solid #dcdcdc;text-align:center;margin-bottom:20px;">
+          <template is="dom-repeat" items="{{resultados}}" as="resultado">
+            <strong>{{resultado}}</strong><br>
+        </template>
+      </div>
+      </div>
+
+  </template>
+
+  <script>
+    (function() {
+      'use strict';
+      
+      Polymer({
+        is: 'metodo-grafico',
+
+        properties: {
+            selected: {
+            	type: String,
+            	notify: true
+            },
+            objetivo: { //0: Maximizar, 1: Minimizar
+            	type: Number,
+            	value: 0
+            },
+            condiciones: {
+              type: Array,
+              notify: true,
+              value: []
+            },
+            variables: {
+              type: Array,
+              notify: true,
+              value: []
+            },
+            datosGrafica: {
+              type: Array,
+              notify: true,
+              value: []
+            },
+            columnas: {
+              type: Array,
+              notify: true,
+              value: []
+            },
+            resultados: {
+              type: Array,
+              value: []
+            },
+            dataResultados: {
+              type: Array,
+              value: []
+            }
+        },
+        obtenerResultados: function(){
+          this.$.grafico.options.series = {};
+        	this.columnas = [];
+        	var datos = [];
+        	var keys = [];
+        	for (var key in this.condiciones[0]) {
+        		if(key!= "valor" && key!="operador"){
+        			keys.push(key);
+        		}
+        	}
+          console.debug(this.condiciones);
+        	this.columnas.push({"label":keys[0],"type":"number"});
+        	for (var i = 0; i < this.condiciones.length; i++) {
+            if (this.condiciones[i].operador === 'menor_o_igual'){
+              this.$.grafico.options.series[""+i] = {type: "area"};
+            }
+        		this.columnas.push({"label": "Condición "+(i+1),"type":"number"});
+        	}
+          this.columnas.push({"label": "Optimo","type":"number"});
+          this.$.grafico.options.series[""+this.condiciones.length] = { pointShape: 'circle', pointSize: 15};
+
+        	var mayor = 0;
+        	for (var j = 0; j < this.condiciones.length; j++) {
+      			var valor = this.puntoX2(this.condiciones[j].valor,0,0,this.condiciones[j][keys[0]]);
+      			if(valor > mayor){
+      				mayor = valor;
+      			}
+      		}
+
+          var x1Value = 0;
+          var x2Value = 0;
+          for (var k = 0; k < this.dataResultados.length; k++) {
+            if (this.dataResultados[k].nombre === "X1"){
+              x1Value = parseFloat(this.dataResultados[k].valor);
+            }
+            else if (this.dataResultados[k].nombre === "X2"){
+              x2Value = parseFloat(this.dataResultados[k].valor);
+            }
+          }
+          var puntoEncontrado = false;
+        	for (var i = 0; i <= mayor; i = i+(mayor/1000)) {
+        		var puntos = [];
+        		i = Math.round(i * 100) / 100;
+            if (!puntoEncontrado && Math.abs(i - x1Value) < 0.1){
+              i = x1Value;
+            }
+        		puntos.push(i);
+        		for (var j = 0; j < this.condiciones.length; j++) {
+        			var valor = this.puntoX2(this.condiciones[j].valor,this.condiciones[j][keys[0]],i,this.condiciones[j][keys[1]]);
+        			valor = Math.round(valor * 100) / 100;
+        			if(valor<0){
+        				valor = undefined;
+        			}
+        			puntos.push(valor);
+        		}
+            if (!puntoEncontrado && Math.abs(i - x1Value) < 0.1){
+              console.debug(i);
+              console.debug(x1Value);
+              puntos.push(x2Value);
+              puntoEncontrado = true;
+            }
+            else {
+              puntos.push(null);
+            }
+        		datos.push(puntos);
+        	}
+
+        	this.set("datosGrafica",datos);
+        	this.async(function () {
+        		this.$.grafico.drawChart();
+        	},100);
+        },
+        puntoX2: function(valor,c1,X1,c2){
+        	return (valor - c1*X1)/c2;
+        },
+
+        merge_options: function(obj1,obj2){
+            var obj3 = {};
+            for (var attrname in obj1) { obj3[attrname] = obj1[attrname]; }
+            for (var attrname in obj2) { obj3[attrname] = obj2[attrname]; }
+            return obj3;
+        },
+        redirectBack: function(e){
+          document.getElementById("sectionIngresoDatos").style.transformOrigin = "";
+          document.getElementById("proglineal").redirectBack(e);
+        },
+        getParam: function(e,atributo){
+          var target = e.target;
+            while (!target.getAttribute(atributo)) {
+              target = target.parentNode;
+            }
+            return target.getAttribute(atributo);
+        },
+      });
+    })();
+  </script>
+
+</dom-module>
